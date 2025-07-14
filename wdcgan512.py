@@ -95,9 +95,9 @@ class Discriminator(nn.Module):
             nn.LayerNorm([params['ndf']*8, 8, 8]),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(params['ndf']*8, params['ndf']*8, 4, 2, 1, bias=False),  # 8 4
-            nn.LayerNorm([params['ndf']*8, 4, 4]),
-            nn.LeakyReLU(0.2, inplace=True),
+            # nn.Conv2d(params['ndf']*8, params['ndf']*8, 4, 2, 1, bias=False),  # 8 4
+            # nn.LayerNorm([params['ndf']*8, 4, 4]),
+            # nn.LeakyReLU(0.2, inplace=True),
 
         )
         self.output = nn.Sequential(

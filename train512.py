@@ -74,10 +74,10 @@ print(netD)
 #criterion = nn.BCELoss()
 def generator_loss(fake_scores):
     return -fake_scores.mean()
-def discriminator_loss(real_scores, fake_scores, gradient_penalty, refu=1):
-    gp_clamped = torch.clamp(gradient_penalty, max=10.0)
-    print(f"grad_penalty: {refu * gp_clamped.item():.4f}")
-    return fake_scores.mean() - real_scores.mean() + refu * gp_clamped
+def discriminator_loss(real_scores, fake_scores, gradient_penalty, refu=10):
+    # gp_clamped = torch.clamp(gradient_penalty, max=10.0)
+    # print(f"grad_penalty: {refu * gp_clamped.item():.4f}")
+    return fake_scores.mean() - real_scores.mean() + refu * gradient_penalty
 def compute_gradient_penalty(D, real_data, fake_data, label, device='cuda', clamp_norm=True):
     batch_size = real_data.size(0)
     
@@ -174,12 +174,13 @@ for epoch in range(params['nepochs']):
         fake_data = netG(noise, real_labels)
         fake_scores = netD(fake_data, real_labels).view(-1)
 
-        features_real = netD.feature_extractor(real_data, real_labels)
-        features_fake = netD.feature_extractor(fake_data, real_labels)
+        # features_real = netD.feature_extractor(real_data, real_labels)
+        # features_fake = netD.feature_extractor(fake_data, real_labels)
 
-        fm_loss = F.l1_loss(features_fake, features_real.detach())
-        print(fm_loss.item())
-        errG = generator_loss(fake_scores) + 10 * fm_loss
+        # fm_loss = F.l1_loss(features_fake, features_real.detach())
+        # print(fm_loss.item())
+        errG = generator_loss(fake_scores) 
+        # + 10 * fm_loss
         errG.backward()
         optimizerG.step()
 
