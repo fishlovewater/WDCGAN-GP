@@ -32,7 +32,7 @@ params = {
     'nz' : 100,# Size of the Z latent vector (the input to the generator).
     'ngf' : 64,# Size of feature maps in the generator. The depth will be multiples of this.
     'ndf' : 64, # Size of features maps in the discriminator. The depth will be multiples of this.
-    'nepochs' : 1000,# Number of training epochs.
+    'nepochs' : 10000,# Number of training epochs.
     'lr' : 0.0001,# Learning rate for optimizers
     'class' : 1 #0-4
 }
@@ -75,8 +75,8 @@ print(netD)
 def generator_loss(fake_scores):
     return -fake_scores.mean()
 def discriminator_loss(real_scores, fake_scores, gradient_penalty, refu=1):
-    print(f"grad_penalty: {gradient_penalty.item()*refu:.4f}")
     gp_clamped = torch.clamp(gradient_penalty, max=10.0)
+    print(f"grad_penalty: {refu * gp_clamped.item():.4f}")
     return fake_scores.mean() - real_scores.mean() + refu * gp_clamped
 def compute_gradient_penalty(D, real_data, fake_data, label, device='cuda', clamp_norm=True):
     batch_size = real_data.size(0)
@@ -93,8 +93,8 @@ def compute_gradient_penalty(D, real_data, fake_data, label, device='cuda', clam
         outputs=d_interpolates,
         inputs=interpolates,
         grad_outputs=fake,
-        create_graph=True,
-        retain_graph=True,
+        create_graph=False,
+        retain_graph=False,
         only_inputs=True
     )[0]
 
@@ -136,48 +136,28 @@ for epoch in range(params['nepochs']):
     err_g=0.0
     dataloader_iter = iter(dataloader)
     for i, data in enumerate(dataloader, 0):
-        # real_data = data[0].to(device)
-        # real_labels = data[1].to(device)
-        # b_size = real_data.size(0)
-        for k in range (5) :
+        real_data = data[0].to(device)
+        real_labels = data[1].to(device)
+        b_size = real_data.size(0)
+        for param in netD.parameters():
+                param.requires_grad = True
+        netD.zero_grad()
 
-            try:
-                real_data, real_labels = next(dataloader_iter)
-            except:
-                dataloader_iter = iter(dataloader)
-                real_data, real_labels = next(dataloader_iter)
-
-            real_data = real_data.to(device)
-            real_labels = real_labels.to(device)
-            b_size = real_data.size(0)
-            netD.zero_grad()
-            # real data score
-            real_scores = netD(real_data, real_labels).view(-1)
-            #to make sure label same with real
-            fake_labels = real_labels.clone()
+        with torch.no_grad():
             noise = torch.randn(b_size, params['nz'], 1, 1, device=device)
-            fake_data = netG(noise, fake_labels)
+            fake_data = netG(noise, real_labels)
 
-            # fake data score
-            fake_scores = netD(fake_data.detach(), fake_labels).view(-1)
+        real_scores = netD(real_data, real_labels).view(-1)
+        fake_scores = netD(fake_data, real_labels).view(-1)
 
-            # Gradient Penalty
-            gradient_penalty = compute_gradient_penalty(
-            netD,
-            real_data.detach(),
-            fake_data.detach(),
-            real_labels,
-            device
-            )
+        gradient_penalty = compute_gradient_penalty(
+            netD, real_data, fake_data, real_labels, device
+        )
 
+        errD = discriminator_loss(real_scores, fake_scores, gradient_penalty)
+        errD.backward()
+        optimizerD.step()
 
-            # Discriminator  loss (Wasserstein loss + gradient penalty)
-            errD = discriminator_loss(real_scores, fake_scores, gradient_penalty)
-            torch.nn.utils.clip_grad_norm_(netD.parameters(), max_norm=10.0)
-            
-
-            errD.backward()
-            optimizerD.step()
 
         # score for print
         D_x = real_scores.mean().item()
@@ -188,51 +168,25 @@ for epoch in range(params['nepochs']):
         #freeze d
         for param in netD.parameters():
             param.requires_grad = False
-       	
-       	
-        # Make accumalted gradients of the generator zero.
-
-#         # 取 real/fake 的中間特徵
-# features_real = netD.feature_extractor(real_data, real_labels)
-# features_fake = netD.feature_extractor(fake_data, fake_labels)
-
-# # 計算 L1 或 L2 距離
-# fm_loss = F.l1_loss(features_fake, features_real.detach())
-# # 或用 F.mse_loss(...)
-
-# # 加進 generator loss（加權合併）
-# errG = generator_loss(fake_scores) + alpha * fm_loss
-
         netG.zero_grad()
 
-        # We want the fake data to be classified as real. Hence
-        # real_label are used. (label=1)
-        #label.fill_(real_label)
-        # No detach() is used here as we want to calculate the gradients w.r.t.
-        # the generator this time.
-        fake_scores = netD(fake_data, fake_labels).view(-1)
+        noise = torch.randn(b_size, params['nz'], 1, 1, device=device)
+        fake_data = netG(noise, real_labels)
+        fake_scores = netD(fake_data, real_labels).view(-1)
+
         features_real = netD.feature_extractor(real_data, real_labels)
-        features_fake = netD.feature_extractor(fake_data, fake_labels)
+        features_fake = netD.feature_extractor(fake_data, real_labels)
+
         fm_loss = F.l1_loss(features_fake, features_real.detach())
+        print(fm_loss.item())
         errG = generator_loss(fake_scores) + 10 * fm_loss
-        print((10 * fm_loss).item())
-        torch.nn.utils.clip_grad_norm_(netG.parameters(), max_norm=10.0)
-        # Gradients for backpropagation are calculated.
-        # Gradients w.r.t. both the generator and the discriminator
-        # parameters are calculated, however, the generator's optimizer
-        # will only update the parameters of the generator. The discriminator
-        # gradients will be set to zero in the next iteration by netD.zero_grad()
-        errG.backward()# will release computation graph
-            #torch.nn.utils.clip_grad_norm_(netG.parameters(), max_norm=1.0)
-            
-        # Update generator parameters.
+        errG.backward()
         optimizerG.step()
+
         err_g+=errG
             
         D_G_z2 = fake_scores.mean().item()
-        # fd
-        for param in netD.parameters():
-            param.requires_grad = True
+
         
         if i % 1 == 0:
             del real_data, fake_data, real_scores, fake_scores, gradient_penalty, noise, features_real, features_fake
