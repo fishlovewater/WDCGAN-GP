@@ -136,6 +136,7 @@ for epoch in range(params['nepochs']):
     err_g=0.0
     dataloader_iter = iter(dataloader)
     for i, data in enumerate(dataloader, 0):
+        print(data[0].shape)
         real_data = data[0].to(device)
         real_labels = data[1].to(device)
         b_size = real_data.size(0)
@@ -190,7 +191,8 @@ for epoch in range(params['nepochs']):
 
         
         if i % 1 == 0:
-            del real_data, fake_data, real_scores, fake_scores, gradient_penalty, noise, features_real, features_fake
+            del real_data, fake_data, real_scores, fake_scores, gradient_penalty, noise
+            #, features_real, features_fake
             torch.cuda.empty_cache()
 
 

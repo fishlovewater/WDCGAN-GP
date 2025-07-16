@@ -16,13 +16,13 @@ def get_data(params):
         transforms.CenterCrop(params['imsize']),
         transforms.Grayscale(num_output_channels=1), 
         transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5),
-            (0.5, 0.5, 0.5))])
+        transforms.Normalize((0.5,), (0.5,))
+    ])
 
     # Create the dataset.
     dataset = dset.ImageFolder(root=root, transform=transform)
     #is dictionary
-    with open("C:\Users\user\OneDrive\桌面\WDCGAN-GP\class.txt", 'w', encoding='utf-8') as f:
+    with open(r"C:\Users\user\OneDrive\桌面\WDCGAN-GP\class.txt", 'w', encoding='utf-8') as f:
         for class_name, class_idx in dataset.class_to_idx.items():
             f.write(f"{class_name}: {class_idx}\n")
     # Create the dataloader.

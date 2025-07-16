@@ -46,7 +46,7 @@ class Generator(nn.Module):
             nn.BatchNorm2d(params['ngf']//2),
             nn.ReLU(True),
 
-            nn.ConvTranspose2d(params['ngf']//2, params['ngf']//4, 4, 2, 1, bias=False),  # 128 -> 256 16
+            nn.ConvTranspose2d(params['ngf']//2, params['nc']-1, 4, 2, 1, bias=False),  # 128 -> 256 16
             nn.Tanh()
         )
 
@@ -72,19 +72,19 @@ class Discriminator(nn.Module):
             nn.Conv2d(params['nc'], params['ndf'], 4, 2, 1, bias=False),  #256 128
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(params['ndf'], params['ndf']*2, 4, 2, 1, bias=False),  #128 64
-            nn.LayerNorm([params['ndf']*2, 128, 128]),
+            nn.LayerNorm([params['ndf']*2, 64, 64]),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(params['ndf']*2, params['ndf']*4, 4, 2, 1, bias=False), #64 32
-            nn.LayerNorm([params['ndf']*4, 64, 64]),
+            nn.LayerNorm([params['ndf']*4, 32, 32]),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(params['ndf']*4, params['ndf']*8, 4, 2, 1, bias=False),  #32 16
-            nn.LayerNorm([params['ndf']*8, 32, 32]),
+            nn.LayerNorm([params['ndf']*8, 16, 16]),
             nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(params['ndf']*8, params['ndf']*8, 4, 2, 1, bias=False),  # 16 8
-            nn.LayerNorm([params['ndf']*8, 16, 16]),
+            nn.LayerNorm([params['ndf']*8, 8, 8]),
             nn.LeakyReLU(0.2, inplace=True),
 
             # nn.Conv2d(params['ndf']*8, params['ndf']*8, 4, 2, 1, bias=False),  
