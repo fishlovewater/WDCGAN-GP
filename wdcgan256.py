@@ -47,10 +47,6 @@ class Generator(nn.Module):
             nn.ReLU(True),
 
             nn.ConvTranspose2d(params['ngf']//2, params['ngf']//4, 4, 2, 1, bias=False),  # 128 -> 256 16
-            nn.BatchNorm2d(params['ngf']//4),
-            nn.ReLU(True),
-            
-            nn.ConvTranspose2d(params['ngf']//4, params['nc'], 4, 2, 1, bias=False),  # 256 512 3
             nn.Tanh()
         )
 
@@ -73,35 +69,31 @@ class Discriminator(nn.Module):
         #轉換編碼 模擬label->512*512 取代onehot
         self.label_emb = nn.Embedding(params['class'], params['imsize'] * params['imsize'])
         self.dnet= nn.Sequential(
-            nn.Conv2d(params['nc'], params['ndf'], 4, 2, 1, bias=False),  # 512 256
+            nn.Conv2d(params['nc'], params['ndf'], 4, 2, 1, bias=False),  #256 128
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(params['ndf'], params['ndf']*2, 4, 2, 1, bias=False),  # 256 128
+            nn.Conv2d(params['ndf'], params['ndf']*2, 4, 2, 1, bias=False),  #128 64
             nn.LayerNorm([params['ndf']*2, 128, 128]),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(params['ndf']*2, params['ndf']*4, 4, 2, 1, bias=False),  # 128 64
+            nn.Conv2d(params['ndf']*2, params['ndf']*4, 4, 2, 1, bias=False), #64 32
             nn.LayerNorm([params['ndf']*4, 64, 64]),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(params['ndf']*4, params['ndf']*8, 4, 2, 1, bias=False),  # 64 32
+            nn.Conv2d(params['ndf']*4, params['ndf']*8, 4, 2, 1, bias=False),  #32 16
             nn.LayerNorm([params['ndf']*8, 32, 32]),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(params['ndf']*8, params['ndf']*8, 4, 2, 1, bias=False),  # 32 16
+            nn.Conv2d(params['ndf']*8, params['ndf']*8, 4, 2, 1, bias=False),  # 16 8
             nn.LayerNorm([params['ndf']*8, 16, 16]),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(params['ndf']*8, params['ndf']*8, 4, 2, 1, bias=False),  # 16 8
-            nn.LayerNorm([params['ndf']*8, 8, 8]),
-            nn.LeakyReLU(0.2, inplace=True),
-
-            # nn.Conv2d(params['ndf']*8, params['ndf']*8, 4, 2, 1, bias=False),  # 8 4
+            # nn.Conv2d(params['ndf']*8, params['ndf']*8, 4, 2, 1, bias=False),  
             # nn.LayerNorm([params['ndf']*8, 4, 4]),
             # nn.LeakyReLU(0.2, inplace=True),
 
         )
         self.output = nn.Sequential(
-             nn.Conv2d(params['ndf']*8, 1, 4, 1, 0, bias=False)  # 4×4 → 1×1
+             nn.Conv2d(params['ndf']*8, 1, 8, 1, 0, bias=False)  # 8×8 → 1×1
         )
 
     def forward(self, x, label):

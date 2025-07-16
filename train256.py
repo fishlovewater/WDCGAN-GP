@@ -15,7 +15,7 @@ import glob
 #計算通訊成本 時間\
 import time as t
 from utils import get_data
-from wdcgan512 import weights_init, Generator, Discriminator
+from wdcgan256 import weights_init, Generator, Discriminator
 
 # Set random seed for reproducibility.
 seed = 369
@@ -26,8 +26,8 @@ print("Random Seed: ", seed)
 
 # Parameters to define the model.
 params = {
-    "bsize" : 4,# Batch size during training.
-    'imsize' : 512,# Spatial size of training images. All images will be resized to this size during preprocessing.
+    "bsize" : 16,# Batch size during training.
+    'imsize' : 256,# Spatial size of training images. All images will be resized to this size during preprocessing.
     'nc' : 2,# Number of channles in the training images. For coloured images this is 3.RGB
     'nz' : 100,# Size of the Z latent vector (the input to the generator).
     'ngf' : 64,# Size of feature maps in the generator. The depth will be multiples of this.
