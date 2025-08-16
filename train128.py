@@ -15,7 +15,7 @@ import glob
 from torchvision.models import vgg16
 import time as t
 from utils import get_data
-from wdcgan256 import weights_init, Generator, Discriminator
+from wdcgan128 import weights_init, Generator, Discriminator
 
 # Set random seed for reproducibility.
 seed = 369
@@ -27,13 +27,14 @@ print("Random Seed: ", seed)
 # Parameters to define the model.
 params = {
     "bsize" : 64,# Batch size during training.
-    'imsize' : 256,# Spatial size of training images. All images will be resized to this size during preprocessing.
+    'imsize' : 128,# Spatial size of training images. All images will be resized to this size during preprocessing.
     'nc' : 1,# Number of channles in the training images. For coloured images this is 3.RGB
     'nz' : 100,# Size of the Z latent vector (the input to the generator).
     'ngf' : 64,# Size of feature maps in the generator. The depth will be multiples of this.
     'ndf' : 64, # Size of features maps in the discriminator. The depth will be multiples of this.
     'nepochs' : 20000,# Number of training epochs.
     'lr' : 0.0002,# Learning rate for optimizers
+    # 'class' : 1, #0-4
     'Gnorm': 'instance'
 }
 
@@ -71,17 +72,23 @@ netD.apply(weights_init)
 # Print the model.
 print(netD)
 
+# vgg = vgg16(weights='VGG16_Weights.DEFAULT')
+
+# feature_extractor = nn.Sequential(*list(vgg.features.children())[:8])
+# feature_extractor = feature_extractor.to(device)
+# for p in feature_extractor.parameters():
+#     p.requires_grad = False
+
 
 # Binary Cross Entropy loss function.
 #criterion = nn.BCELoss()
-clip = False
 def generator_loss(fake_scores):
     return -fake_scores.mean()
-def discriminator_loss(real_scores, fake_scores, gradient_penalty):
+def discriminator_loss(real_scores, fake_scores, gradient_penalty, refu=10):
     # gp_clamped = torch.clamp(gradient_penalty, max=10.0)
     # print(f"grad_penalty: {refu * gp_clamped.item():.4f}")
-    print(f"real score: {real_scores.mean()}  fake :{fake_scores.mean()} gp : {gradient_penalty.item()}")
-    return fake_scores.mean() - real_scores.mean() 
+    print(f"real score: {real_scores.mean()}  fake :{fake_scores.mean()} gp : {10*gradient_penalty.item()}")
+    return fake_scores.mean() - real_scores.mean() + refu * gradient_penalty
 def compute_gradient_penalty(D, real_data, fake_data,  device='cuda', clamp_norm=True):
     batch_size = real_data.size(0)
     
@@ -97,8 +104,8 @@ def compute_gradient_penalty(D, real_data, fake_data,  device='cuda', clamp_norm
         outputs=d_interpolates,
         inputs=interpolates,
         grad_outputs=fake,
-        create_graph=False,
-        retain_graph=False,
+        create_graph=True,
+        retain_graph=True,
         only_inputs=True
     )[0]
 
@@ -109,9 +116,6 @@ def compute_gradient_penalty(D, real_data, fake_data,  device='cuda', clamp_norm
         gradient_norm = gradient_norm.clamp(0, 10)
 
     penalty = ((gradient_norm - 1) ** 2).mean()
-    if penalty >= 80:
-        global clip
-        clip = True
     return penalty
 
 
@@ -142,7 +146,6 @@ for epoch in range(params['nepochs']):
     err_D=0.0
     err_g=0.0
     dataloader_iter = iter(dataloader)
-    clip = False
     for i, data in enumerate(dataloader, 0):
         print(data[0].shape)
         real_data = data[0].to(device)
@@ -162,21 +165,9 @@ for epoch in range(params['nepochs']):
             netD, real_data, fake_data, device
         )
         torch.nn.utils.clip_grad_norm_(netD.parameters(), max_norm=10)
-        Dloss = discriminator_loss(real_scores, fake_scores, gradient_penalty)
-        
-        errD = Dloss + 10*gradient_penalty
+        errD = discriminator_loss(real_scores, fake_scores, gradient_penalty)
         errD.backward()
         optimizerD.step()
-
-        # if clip:
-        #     print("clip-----------------------------")
-        #     clip_value = 0.01  
-
-        #     for p in netD.parameters():
-        #         p.data.clamp_(-clip_value, clip_value)
-
-
-
 
 
         # score for print
@@ -205,16 +196,14 @@ for epoch in range(params['nepochs']):
         fm_loss = F.mse_loss(features_fake, features_real.detach())
 
         # fm_loss = torch.norm(features_real.detach() - features_fake, p=2)
-        if fm_loss > 801:
-            fm_loss = 801
-        else:
-            fm_loss /=500
+        print(f"fm_loss : {fm_loss.item()/500}")
+        fm_loss = torch.clamp(fm_loss, max=801.0)
+        print(f"modify fm_loss : {fm_loss.item()}")
         errG = generator_loss(fake_scores)
         #generator_loss(fake_scores)
 
         # if epoch >= 1000 :
-        print(f"modify fm_loss : {fm_loss.item()}")
-        errG += fm_loss
+        errG += fm_loss/500
         errG.backward()
         optimizerG.step()
 
